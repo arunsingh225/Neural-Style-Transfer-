@@ -1,0 +1,38 @@
+# ── OS ──────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# ── Python ──────────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+*.egg
+
+# ── Jupyter ──────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# ── Large model weights (too big for GitHub) ────────────────────────
+# Use Git LFS or host on Google Drive / HuggingFace Hub
+NST_Code/vgg_normalised.pth
+NST_Code/experiment/
+
+# ── Uploaded files (user content, not part of source) ───────────────
+NST_Code/static/uploads/
+
+# ── IDE ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ── Misc ──────────────────────────────────────────────────────────────
+*.log
+*.tmp

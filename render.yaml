@@ -3,7 +3,7 @@ services:
     name: neural-style-transfer
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --chdir NST_Code app:app
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --timeout 300 --chdir NST_Code app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.12

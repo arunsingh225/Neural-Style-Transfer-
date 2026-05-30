@@ -15,9 +15,13 @@ from utils.models import VGGEncoder, Decoder
 from utils.utils import adaptive_instance_normalization, calc_mean_std
 
 
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'supersecretkey'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
+# Disable CSRF to allow iframe embeds in Hugging Face Spaces (no-cookie stateless mode)
+app.config['WTF_CSRF_ENABLED'] = False
+app.config['UPLOAD_FOLDER'] = os.path.join(_BASE_DIR, 'static', 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 Bootstrap(app)
 
@@ -33,10 +37,9 @@ class UploadForm(FlaskForm):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-_VGG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vgg_normalised.pth')
+_VGG_PATH = os.path.join(_BASE_DIR, 'vgg_normalised.pth')
 encoder = VGGEncoder(_VGG_PATH).to(device)
 decoder = Decoder().to(device)
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 decoder.load_state_dict(torch.load(os.path.join(_BASE_DIR, 'experiment', 'final_exp', 'decoder_final.pth'), map_location=device))
 
 encoder.eval()
@@ -89,46 +92,52 @@ def index():
     style_filename = None
     error = None
 
-    if form.validate_on_submit():
-        if form.content.data and form.content.data.filename:
-            if allowed_file(form.content.data.filename):
-                content_filename = secure_filename(form.content.data.filename)
-                form.content.data.save(os.path.join(app.config['UPLOAD_FOLDER'], content_filename))
-                form.content_path.data = content_filename
-        else:
-            content_filename = form.content_path.data
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            if form.content.data and form.content.data.filename:
+                if allowed_file(form.content.data.filename):
+                    content_filename = secure_filename(form.content.data.filename)
+                    form.content.data.save(os.path.join(app.config['UPLOAD_FOLDER'], content_filename))
+                    form.content_path.data = content_filename
+            else:
+                content_filename = form.content_path.data
 
-        if form.style.data and form.style.data.filename:
-            if allowed_file(form.style.data.filename):
-                style_filename = secure_filename(form.style.data.filename)
-                form.style.data.save(os.path.join(app.config['UPLOAD_FOLDER'], style_filename))
-                form.style_path.data = style_filename
-        else:
-            style_filename = form.style_path.data
+            if form.style.data and form.style.data.filename:
+                if allowed_file(form.style.data.filename):
+                    style_filename = secure_filename(form.style.data.filename)
+                    form.style.data.save(os.path.join(app.config['UPLOAD_FOLDER'], style_filename))
+                    form.style_path.data = style_filename
+            else:
+                style_filename = form.style_path.data
 
-        if content_filename and style_filename:
-            content_path = os.path.join(app.config['UPLOAD_FOLDER'], content_filename)
-            style_path = os.path.join(app.config['UPLOAD_FOLDER'], style_filename)
-            
-            try:
-                content_image = Image.open(content_path).convert('RGB')
-                style_image = Image.open(style_path).convert('RGB')
-
-                alpha = float(form.alpha.data)
-                stylized_image = style_transfer(content_image, style_image, encoder, decoder, alpha, device)
-
-                result_filename = 'stylized_' + content_filename
-                result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
-                save_image(stylized_image, result_path)
+            if content_filename and style_filename:
+                content_path = os.path.join(app.config['UPLOAD_FOLDER'], content_filename)
+                style_path = os.path.join(app.config['UPLOAD_FOLDER'], style_filename)
                 
-                result_image = result_filename
-            except Exception as e:
-                error = str(e)
-    else:
-        if not content_filename:
-            error = 'Please upload content image'
-        if not style_filename:
-            error = 'Please upload style image'
+                try:
+                    content_image = Image.open(content_path).convert('RGB')
+                    style_image = Image.open(style_path).convert('RGB')
+
+                    alpha = float(form.alpha.data) if form.alpha.data is not None else 1.0
+                    stylized_image = style_transfer(content_image, style_image, encoder, decoder, alpha, device)
+
+                    result_filename = 'stylized_' + content_filename
+                    result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
+                    save_image(stylized_image, result_path)
+                    
+                    result_image = result_filename
+                except Exception as e:
+                    error = f"Style transfer error: {str(e)}"
+            else:
+                if not content_filename:
+                    error = 'Please upload a content image.'
+                elif not style_filename:
+                    error = 'Please upload a style image.'
+        else:
+            if form.errors:
+                error = f"Form validation error: {form.errors}"
+            else:
+                error = "Form submission failed. Please try again."
 
     return render_template('index.html', form=form, result_image=result_image, content_image=content_filename,
                            style_image=style_filename, error=error)

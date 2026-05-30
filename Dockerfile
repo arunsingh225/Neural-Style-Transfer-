@@ -26,5 +26,5 @@ ENV FLASK_APP=NST_Code/app.py
 # Expose Hugging Face Space port
 EXPOSE 7860
 
-# Start command running gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--chdir", "NST_Code", "app:app"]
+# Start command running gunicorn with 300s timeout
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "300", "--chdir", "NST_Code", "app:app"]
